@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro al Evento</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script>
+        // Función para actualizar los cupos disponibles
+        function actualizarCupos() {
+            fetch('/cupos_disponibles')
+                .then(response => response.json())
+                .then(data => {
+                    // Actualizar el contenido del elemento con id "cupos-disponibles"
+                    document.getElementById('cupos-disponibles').textContent = data.cupos_disponibles;
+                })
+                .catch(error => console.error('Error al obtener los cupos:', error));
+        }
+
+        
+
+        // Función para añadir acompañantes
+        let numAcompanantes = 0;
+        const maxAcompanantes = 3;
+
+        function agregarAcompanante() {
+            if (numAcompanantes < maxAcompanantes) {
+                numAcompanantes++;
+        
+                const acompananteDiv = document.createElement('div');
+                acompananteDiv.className = 'form-group';
+                acompananteDiv.id = `acompanante-${numAcompanantes}`;
+        
+                acompananteDiv.innerHTML = `
+                    <label for="acompanante-name-${numAcompanantes}">Nombre del Acompañante ${numAcompanantes}:</label>
+                    <input type="text" id="acompanante-name-${numAcompanantes}" name="acompanante_name${numAcompanantes}" required>
+                    <label for="acompanante-cedula-${numAcompanantes}">Cedula del Acompañante ${numAcompanantes}:</label>
+                    <input type="text" id="acompanante-cedula-${numAcompanantes}" name="acompanante_cedula${numAcompanantes}" required>
+                `;
+        
+                document.getElementById('acompanantes-container').appendChild(acompananteDiv);
+        
+                if (numAcompanantes === maxAcompanantes) {
+                    document.getElementById('btn-agregar-acompanante').disabled = true;
+                    document.getElementById('btn-agregar-acompanante').textContent = "Límite de acompañantes alcanzado";
+                }
+            }
+        }
+
+        // Validación del formulario antes de enviar
+        function validarFormulario() {
+            const phone = document.getElementById('phone').value;
+            const email = document.getElementById('email').value;
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            // Validar teléfono
+            if (phone.length !== 10 || !/^\d+$/.test(phone)) {
+                alert("El número de teléfono debe tener 10 dígitos.");
+                return false;
+            }
+
+            // Validar correo electrónico
+            if (!emailRegex.test(email)) {
+                alert("Por favor, introduce un correo electrónico válido.");
+                return false;
+            }
+
+            return true;
+        }
+
+        // Actualizar los cupos cada 2.5 segundos
+        setInterval(actualizarCupos, 2500);
+
+        // Llamar a la función al cargar la página
+        window.onload = actualizarCupos;
+    </script>
+</head>
+<body>
+    <div class="container">
+        <p>Cupos disponibles: <span id="cupos-disponibles">{{ cupos_disponibles }}</span></p>
+        {% if mensaje %}
+        <p>{{ mensaje }}</p>
+        {% endif %}
+        <h1>Formulario de Registro al Evento</h1>
+
+        {% if error_message %}
+        <div class="error">{{ error_message }}</div>
+        {% endif %}
+
+        <form method="POST" onsubmit="return validarFormulario()">
+            <div class="form-group">
+                <label for="name">Nombre Completo:</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            <div class="form-group">
+                <label for="cedula">Cedula:</label>
+                <input type="cedula" id="cedula" name="cedula" required>
+            </div>
+            <div class="form-group">
+                <label for="oficina">Oficina o Despacho Judicial:</label>
+                <input type="oficina" id="oficina" name="oficina" required>
+            </div>
+            <div class="form-group">
+                <label for="phone">Número de Teléfono:</label>
+                <input type="text" id="phone" name="phone" required pattern="[0-9]{10}">
+            </div>
+            <div class="form-group">
+                <label for="email">Correo Electrónico Personal Institucional:</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            
+            <div id="acompanantes-container"></div>
+            <button type="button" id="btn-agregar-acompanante" onclick="agregarAcompanante()">Agregar Acompañante</button>
+            <button type="submit">Registrar</button>
+        </form>
+    </div>
+</body>
+</html>
