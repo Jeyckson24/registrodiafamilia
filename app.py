@@ -27,29 +27,8 @@ def get_inscritos_acompan_count():
 def calcular_cupos_usados():
     return get_inscritos_count() + get_inscritos_acompan_count()
 
-def create_tables():
-    conn = get_db_connection()
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS registros (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT NOT NULL,
-            dob TEXT NOT NULL,
-            phone TEXT NOT NULL
-        )
-    ''')
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS acompanantes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            registro_id INTEGER NOT NULL,
-            name TEXT NOT NULL,
-            FOREIGN KEY (registro_id) REFERENCES registros (id)
-        )
-    ''')
-    conn.commit()
-    conn.close()
 
-CUPOS_MAXIMOS = 50
+CUPOS_MAXIMOS = 15
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -115,6 +94,3 @@ def registros():
     conn.close()
     return render_template('registros.html', registros=registros, acompanantes=acompanantes)
 
-if __name__ == '__main__':
-    create_tables()
-    app.run(debug=True)
