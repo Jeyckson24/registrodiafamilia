@@ -27,7 +27,7 @@ def get_inscritos_acompan_count():
 def calcular_cupos_usados():
     return get_inscritos_count() + get_inscritos_acompan_count()
 
-CUPOS_MAXIMOS = 12
+CUPOS_MAXIMOS = 8
 @app.route('/', methods=['GET', 'POST'])
 def index():
     mensaje = None

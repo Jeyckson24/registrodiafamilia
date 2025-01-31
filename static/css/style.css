@@ -59,3 +59,40 @@ button:hover {
     font-size: 0.9em;
     margin-bottom: 15px;
 }
+
+ /* Estilos para el modal */
+ .modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    align-items: center;
+}
+.modal-content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+}
+.modal-buttons {
+    margin-top: 20px;
+}
+.modal-buttons button {
+    margin: 0 10px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.modal-buttons button#confirmWaitlist {
+    background-color: #4CAF50;
+    color: white;
+}
+.modal-buttons button#cancelWaitlist {
+    background-color: #f44336;
+    color: white;
+}
