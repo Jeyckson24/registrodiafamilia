@@ -27,7 +27,7 @@ def get_inscritos_acompan_count():
 def calcular_cupos_usados():
     return get_inscritos_count() + get_inscritos_acompan_count()
 
-CUPOS_MAXIMOS = 8
+CUPOS_MAXIMOS = 2
 @app.route('/', methods=['GET', 'POST'])
 def index():
     mensaje = None
@@ -48,6 +48,17 @@ def index():
             error_message = "Todos los campos son obligatorios."
             return render_template('index.html', error_message=error_message, cupos_disponibles=cupos_disponibles)
 
+        # Verificar si la cédula ya está registrada
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM registros WHERE cedula = ?', (cedula,))
+        cedula_count = cursor.fetchone()[0]
+        conn.close()
+
+        if cedula_count > 0:
+            error_message = "La cédula ya está registrada."
+            return render_template('index.html', error_message=error_message, cupos_disponibles=cupos_disponibles)
+        
         try:
             conn = get_db_connection()
             cursor = conn.cursor()
@@ -74,7 +85,8 @@ def index():
                     if acompanante_name:  # Verificar si el campo tiene un valor
                         cursor.execute('INSERT INTO acompanantes (registro_id, name, cedula) VALUES (?, ?, ?)',
                                        (registro_id, acompanante_name, acompanante_cedula))
-
+                
+            
                 mensaje = "Registro exitoso."
 
             conn.commit()
@@ -100,3 +112,7 @@ def registros():
     acompanantes = conn.execute('SELECT * FROM acompanantes').fetchall()
     conn.close()
     return render_template('registros.html', registros=registros, acompanantes=acompanantes)
+
+@app.route('/indexhome.html')
+def indexhome():
+    return render_template('indexhome.html')
