@@ -27,9 +27,54 @@ def get_inscritos_acompan_count():
 def calcular_cupos_usados():
     return get_inscritos_count() + get_inscritos_acompan_count()
 
-CUPOS_MAXIMOS = 2
+
+def get_user(email, cedula):
+    conn = sqlite3.connect('registros_evento.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT evento FROM usuarios WHERE email = ? AND cedula = ?", (email, cedula))
+    user = cursor.fetchone()
+    conn.close()
+    return user[0] if user else None
+
 @app.route('/', methods=['GET', 'POST'])
-def index():
+def login():
+    if request.method == 'POST':
+        email = request.form['email']
+        cedula = request.form['cedula']
+        evento = get_user(email, cedula)
+
+        if evento:
+            if evento == 1:
+                return redirect(url_for('indexev1'))
+            elif evento == 2:
+                return redirect(url_for('indexev2'))
+        else:
+            flash("Correo o cédula incorrectos", "danger")
+
+    return render_template('index.html')
+
+@app.route('/index1')
+def index1():
+    return render_template('indexev1.html')
+
+@app.route('/index2')
+def index2():
+    return render_template('indexev2.html')
+
+
+
+
+
+
+
+
+
+
+
+
+CUPOS_MAXIMOS = 3
+@app.route('/indexev1', methods=['GET', 'POST'])
+def indexev1():
     mensaje = None
     cupos_usados = calcular_cupos_usados()
     cupos_disponibles = CUPOS_MAXIMOS - cupos_usados
@@ -93,9 +138,78 @@ def index():
             conn.close()
         except Exception as e:
             error_message = f"Error al guardar los datos: {str(e)}"
+            return render_template('indexev1.html', error_message=error_message, cupos_disponibles=cupos_disponibles)
+
+    return render_template('indexev1.html', cupos_disponibles=cupos_disponibles, mensaje=mensaje)
+@app.route('/indexev2', methods=['GET', 'POST'])
+def indexev2():
+    
+    mensaje = None
+    cupos_usados = calcular_cupos_usados()
+    cupos_disponibles = CUPOS_MAXIMOS - cupos_usados
+
+    if request.method == 'POST':
+        # Datos del formulario principal
+        name = request.form.get('name')
+        cedula = request.form.get('cedula')
+        oficina = request.form.get('oficina')
+        phone = request.form.get('phone')
+        email = request.form.get('email')
+        waitlist = request.form.get('waitlist') == 'true'  # Verifica si es lista de espera
+
+        # Validación básica
+        if not name or not email or not cedula or not phone or not oficina:
+            error_message = "Todos los campos son obligatorios."
             return render_template('index.html', error_message=error_message, cupos_disponibles=cupos_disponibles)
 
-    return render_template('index.html', cupos_disponibles=cupos_disponibles, mensaje=mensaje)
+        # Verificar si la cédula ya está registrada
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM registros WHERE cedula = ?', (cedula,))
+        cedula_count = cursor.fetchone()[0]
+        conn.close()
+
+        if cedula_count > 0:
+            error_message = "La cédula ya está registrada."
+            return render_template('indexev2.html', error_message=error_message, cupos_disponibles=cupos_disponibles)
+        
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+
+            if waitlist:
+                # Guardar en la misma tabla pero con el campo 'espera' en 1
+                cursor.execute('''
+                    INSERT INTO registros (name, cedula, oficina, phone, email, espera)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (name, cedula, oficina, phone, email, 1))
+                mensaje = "Registro en lista de espera exitoso."
+            else:
+                # Guardar datos del registro principal (campo 'espera' en 0 por defecto)
+                cursor.execute('''
+                    INSERT INTO registros (name, cedula, oficina, phone, email, espera)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (name, cedula, oficina, phone, email, 0))
+                registro_id = cursor.lastrowid
+
+                # Guardar acompañantes
+                for i in range(1, 4):  # Recorre los acompañantes del 1 al 3
+                    acompanante_name = request.form.get(f'acompanante_name{i}')
+                    acompanante_cedula = request.form.get(f'acompanante_cedula{i}')
+                    if acompanante_name:  # Verificar si el campo tiene un valor
+                        cursor.execute('INSERT INTO acompanantes (registro_id, name, cedula) VALUES (?, ?, ?)',
+                                       (registro_id, acompanante_name, acompanante_cedula))
+                
+            
+                mensaje = "Registro exitoso."
+
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            error_message = f"Error al guardar los datos: {str(e)}"
+            return render_template('indexev2.html', error_message=error_message, cupos_disponibles=cupos_disponibles)
+
+    return render_template('indexev2.html', cupos_disponibles=cupos_disponibles, mensaje=mensaje)
 
 @app.route('/cupos_disponibles')
 def cupos_disponibles():
@@ -116,3 +230,5 @@ def registros():
 @app.route('/indexhome.html')
 def indexhome():
     return render_template('indexhome.html')
+if __name__ == '__main__':
+    app.run(debug=True)
