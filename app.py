@@ -1,8 +1,11 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+import secrets
+from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, session
 import sqlite3
 from datetime import datetime
 
 app = Flask(__name__)
+secret_key = secrets.token_hex(24)
+app.secret_key = secret_key  # Necesario para usar flash messages
 
 # Conectar a la base de datos
 def get_db_connection():
@@ -27,8 +30,43 @@ def get_inscritos_acompan_count():
 def calcular_cupos_usados():
     return get_inscritos_count() + get_inscritos_acompan_count()
 
-CUPOS_MAXIMOS = 2
+def get_user(email, cedula):
+    conn = sqlite3.connect('registros_evento.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT evento FROM usuarios WHERE email = ? AND cedula = ?", (email, cedula))
+    user = cursor.fetchone()
+    conn.close()
+    return user[0] if user else None
+
 @app.route('/', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form['email']
+        cedula = request.form['cedula']
+        evento = get_user(email, cedula)
+
+        if evento:
+            if evento == 1:
+                session['correo'] = email
+                return redirect(url_for('registro'))
+            #elif evento == 2:
+                #return redirect(url_for('indexev2'))
+        else:
+            flash("Correo o cédula incorrectos", "danger")
+
+    return render_template('index.html')
+
+@app.route('/registro')
+def registro():
+    # Verificar si el usuario ha iniciado sesión
+    if 'correo' not in session:
+        return redirect(url_for('login'))  # Redirigir al login si no está autenticado
+
+    return render_template('registro.html')
+
+
+CUPOS_MAXIMOS = 5
+@app.route('/registro', methods=['GET', 'POST'])
 def index():
     mensaje = None
     cupos_usados = calcular_cupos_usados()
@@ -56,8 +94,9 @@ def index():
         conn.close()
 
         if cedula_count > 0:
-            error_message = "La cédula ya está registrada."
-            return render_template('index.html', error_message=error_message, cupos_disponibles=cupos_disponibles)
+            error_message = ""
+            flash('La cédula ya está registrada.', 'success')
+            return render_template('registro.html', error_message=error_message, cupos_disponibles=cupos_disponibles)
         
         try:
             conn = get_db_connection()
@@ -69,7 +108,8 @@ def index():
                     INSERT INTO registros (name, cedula, oficina, phone, email, espera)
                     VALUES (?, ?, ?, ?, ?, ?)
                 ''', (name, cedula, oficina, phone, email, 1))
-                mensaje = "Registro en lista de espera exitoso."
+                flash('Registro en lista de espera exitoso.', 'success')
+
             else:
                 # Guardar datos del registro principal (campo 'espera' en 0 por defecto)
                 cursor.execute('''
@@ -88,14 +128,16 @@ def index():
                 
             
                 mensaje = "Registro exitoso."
-
+                flash('Registro Exitoso. Recuerde que 3 dias antes de la actividad debera confirmar su asistencia!', 'success')
+    
             conn.commit()
             conn.close()
+            
         except Exception as e:
             error_message = f"Error al guardar los datos: {str(e)}"
             return render_template('index.html', error_message=error_message, cupos_disponibles=cupos_disponibles)
 
-    return render_template('index.html', cupos_disponibles=cupos_disponibles, mensaje=mensaje)
+    return render_template('registro.html', cupos_disponibles=cupos_disponibles, mensaje=mensaje)
 
 @app.route('/cupos_disponibles')
 def cupos_disponibles():
@@ -113,6 +155,15 @@ def registros():
     conn.close()
     return render_template('registros.html', registros=registros, acompanantes=acompanantes)
 
-@app.route('/indexhome.html')
+@app.route('/registro.html')
 def indexhome():
-    return render_template('indexhome.html')
+    return render_template('registro.html')
+
+@app.route('/logout')
+def logout():
+    # Limpiar la sesión
+    session.clear()
+    return redirect(url_for('index'))  # Redirigir a la página principal
+
+if __name__ == '__main__':
+    app.run(debug=True)
